@@ -84,11 +84,11 @@ public class Cliente {
         try {
             while (true) {
                 String mensaje = (String) in.readObject();
-                //encriptador.setMensaje(mensaje);
-                //encriptador.decifrar();
-                //SwingUtilities.invokeLater(() -> {
-                chat.append(encriptador.getMensaje() + "\n");
-                //});
+                encriptador.setMensaje(mensaje);
+                encriptador.decifrar();
+                SwingUtilities.invokeLater(() -> {
+					chat.append(encriptador.getMensaje() + "\n");
+                });
             }
         } catch (IOException | ClassNotFoundException e) {
             socket.close();
@@ -146,8 +146,8 @@ public class Cliente {
             public void mouseClicked(java.awt.event.MouseEvent evt) {
                 try {
                     if(texto.getText()!=null) {
-                        //encriptador.setMensaje(texto.getText());
-                        //encriptador.cifrar();
+                        encriptador.setMensaje(texto.getText());
+                        encriptador.cifrar();
                         out.writeObject(encriptador.getMensaje());
                         out.flush();
                         out.reset();

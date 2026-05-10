@@ -1,4 +1,3 @@
-
 package entidades;
 
 import java.io.IOException;
@@ -26,6 +25,7 @@ import componentes.PTextField;
  * @author erubiel
  */
 public class Servidor {
+
     //variables globales
     private ServerSocket socket;
     private static HashMap<ObjectOutputStream, Encriptador> encriptadores = new HashMap<>();
@@ -55,7 +55,9 @@ public class Servidor {
     }
 
     /**
-     * metodo que permite dar control al servidor sobre sus componentres graficos
+     * metodo que permite dar control al servidor sobre sus componentres
+     * graficos
+     *
      * @param pnlChat
      */
     public void asignarComponentes(JChat pnlChat) {
@@ -66,10 +68,9 @@ public class Servidor {
     }
 
     //metodos de coneccion principales
-
     /**
      * inicia el servidor
-     * 
+     *
      * @throws IOException
      * @throws ClassNotFoundException
      */
@@ -90,7 +91,7 @@ public class Servidor {
 
     /**
      * escucha las conecciones entrantes
-     * 
+     *
      * @param socket
      * @throws IOException
      * @throws ClassNotFoundException
@@ -101,18 +102,18 @@ public class Servidor {
             ObjectOutputStream out = new ObjectOutputStream(cliente.getOutputStream()); //wrapper salida
             out.flush();
             ObjectInputStream in = new ObjectInputStream(cliente.getInputStream()); //wrapper ingreso
-            
+
             Encriptador en = handshake(in, out); //determina una clave secreta de comunicacion
-            String nombreCliente = validarDatos(en,in,out); //determina si el cliente es valido
+            String nombreCliente = validarDatos(en, in, out); //determina si el cliente es valido
             clientes.put(nombreCliente, out); //agrega el cliente a la lista de clientes
             pnlChat.dibujaUsuario(nombreCliente);
-            new Thread(()-> manejaUsuario(en, cliente, in, out,nombreCliente)).start();; //asignar un hilo para el cliente
+            new Thread(() -> manejaUsuario(en, cliente, in, out, nombreCliente)).start();; //asignar un hilo para el cliente
         }
     }
 
     /**
      * maneja la coneccion de un usuario
-     * 
+     *
      * @param cliente
      */
     private void manejaUsuario(Encriptador encriptador, Socket socket, ObjectInputStream in, ObjectOutputStream out, String nombreCliente) {
@@ -120,14 +121,14 @@ public class Servidor {
             Pattern patronPriv = Pattern.compile("^/priv\\s+(\\w+)\\s+(.+)$");
             Matcher matcherPriv;
             while (true) {
-                String mensaje = (String) in.readObject();  
+                String mensaje = (String) in.readObject();
                 if (mensaje instanceof String) {
                     encriptador.setMensaje(mensaje);
-                    //encriptador.decifrar();
-                    //String mensajeDecifrado = encriptador.getMensaje();
-                    matcherPriv = patronPriv.matcher(mensaje);
-                    
-                    if (mensaje.equalsIgnoreCase("/salir")) { //si quiere salir se sale de una
+                    encriptador.decifrar();
+                    String mensajeDecifrado = encriptador.getMensaje();
+                    matcherPriv = patronPriv.matcher(mensajeDecifrado);
+
+                    if (mensajeDecifrado.equalsIgnoreCase("/salir")) { //si quiere salir se sale de una
                         break;
                     } else if (matcherPriv.matches()) { //evalua si quiere enviar un mensaje privado
                         String destinatario = matcherPriv.group(1);
@@ -135,8 +136,8 @@ public class Servidor {
                         String msjPriv = matcherPriv.group(2);
                         System.out.println(msjPriv);
                         enviarMensajePrivado(nombreCliente, destinatario, msjPriv);
-                    } else{
-                        enviarMensaje(nombreCliente,mensaje);
+                    } else {
+                        enviarMensaje(nombreCliente, mensajeDecifrado);
                     }
                 }
             }
@@ -163,12 +164,10 @@ public class Servidor {
         }
     }
 
-
     //metodos de coneccion auxiliares
-
     /**
      * recibe los parametros de alice y manda los de bob
-     * 
+     *
      * @param cliente
      * @throws IOException
      * @throws ClassNotFoundException
@@ -187,14 +186,14 @@ public class Servidor {
         encriptador.setMensaje(mensaje);
         encriptador.decifrar();
         String nombreCliente = encriptador.getMensaje();
-        
+
         //validacion de nombre (no nombres reptidos, no nombres de admin, no nombres de servidor)
-        if(nombreCliente == nombreAdmin || nombreCliente =="SERVIDOR" || clientes.containsKey(nombreCliente)){
+        if (nombreCliente.equals(nombreAdmin) || nombreCliente.equals("SERVIDOR") || clientes.containsKey(nombreCliente)) {
             throw new IOException("Nombre de usuario no valido");
         } else {
-            //encriptadores.put(out, encriptador);//agrega el cliente a la lista de clientes    
-            //encriptador.setMensaje(nombreServidor);// manda el nombre del servidor de manera segura una vez aceptado
-            //encriptador.cifrar();
+            encriptadores.put(out, encriptador);//agrega el cliente a la lista de clientes    
+            encriptador.setMensaje(nombreServidor);// manda el nombre del servidor de manera segura una vez aceptado
+            encriptador.cifrar();
             out.writeObject(encriptador.getMensaje());
             out.flush();
             out.reset();
@@ -206,9 +205,9 @@ public class Servidor {
             out.reset();
 
             // manda el historial de mensajes al cliente
-            for(String m : historial){
-                //encriptador.setMensaje(m);
-                //encriptador.cifrar();
+            for (String m : historial) {
+                encriptador.setMensaje(m);
+                encriptador.cifrar();
                 out.writeObject(encriptador.getMensaje());
                 out.flush();
                 out.reset();
@@ -220,24 +219,23 @@ public class Servidor {
 
     /**
      * envia un mensaje al cliente
-     * 
+     *
      * @param mensaje
      * @throws IOException
      */
     private void enviarMensaje(String emisor, String mensaje) throws IOException {
         String tiempo = String.format("%02d:%02d", Calendar.getInstance().get(Calendar.HOUR_OF_DAY), Calendar.getInstance().get(Calendar.MINUTE));
-        final String msjFormateado = "[" +tiempo + "][" + emisor + "]: " + mensaje;
+        final String msjFormateado = "[" + tiempo + "][" + emisor + "]: " + mensaje;
 
-        encriptadores.forEach((out, encriptador)->{
+        encriptadores.forEach((out, encriptador) -> {
             try {
-                //encriptador.setMensaje(msjFormateado);
-                //encriptador.cifrar();
+                encriptador.setMensaje(msjFormateado);
+                encriptador.cifrar();
                 out.writeObject(encriptador.getMensaje());
                 out.flush();
                 out.reset();
             } catch (IOException e) {
-                System.out.println("Error al enviar el mensaje a " + socket.getInetAddress());
-                e.printStackTrace();
+                System.err.println("Error al enviar el mensaje a " + socket.getInetAddress());
             }
         });
         chat.append(msjFormateado + "\n");
@@ -245,19 +243,24 @@ public class Servidor {
     }
 
     /**
-     * metodo que permite asignar el nombre del servidor
-     * 
+     * metodo que permite enviar mensajes privados
+     *
      * @param nombreServidor
      */
     private void enviarMensajePrivado(String emisor, String destinatario, String mensaje) throws IOException {
         String tiempo = String.format("%02d:%02d", Calendar.getInstance().get(Calendar.HOUR_OF_DAY), Calendar.getInstance().get(Calendar.MINUTE));
-        final String msjFormateado = "[" +tiempo + "][" + emisor + "]: " + mensaje;
+        final String msjFormateado = "[" + tiempo + "][" + emisor + "]: " + mensaje;
         clientes.forEach((nombre, out) -> {
             System.out.println("Entró al metodo enviarMensajePrivado");
             if (nombre.equals(destinatario)) {
                 try {
                     System.out.println("Entro al if");
-                    out.writeObject(msjFormateado);
+                    Encriptador enc = encriptadores.get(out);
+                    if (enc != null) {
+                        enc.setMensaje(msjFormateado);
+                        enc.cifrar();
+                        out.writeObject(enc.getMensaje());
+                    }
                     out.flush();
                     out.reset();
                 } catch (IOException e) {
@@ -270,7 +273,7 @@ public class Servidor {
 
     /**
      * envia un mensaje al cliente
-     * 
+     *
      * @param mensaje
      * @throws IOException
      */
@@ -282,7 +285,7 @@ public class Servidor {
                     enviarMensaje(nombreAdmin, texto.getText());
                 } catch (IOException ex) {
                     ex.printStackTrace();
-                } finally{
+                } finally {
                     texto.setText("");
                 }
             }
